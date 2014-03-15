@@ -1,6 +1,6 @@
-Form1 = 148, 14, 1027, 449, , 176, 36, 799, 471, C
-NotIconModule = 75, 75, 979, 418, C
+Form1 = 148, 14, 1027, 449, Z, 249, 58, 872, 493, C
 ShutdownModule = 83, 131, 987, 474, C
 IniModule = 50, 50, 954, 393, 
 SelfTimer = 0, 0, 0, 0, C
 TopMostModule = 125, 125, 1029, 468, C
+frmSysTray = 100, 100, 1004, 443, , 100, 100, 1004, 443, C

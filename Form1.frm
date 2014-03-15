@@ -1,7 +1,7 @@
 VERSION 5.00
 Object = "{86CF1D34-0C5F-11D2-A9FC-0000F8754DA1}#2.0#0"; "mscomct2.ocx"
 Begin VB.Form Form1 
-   BorderStyle     =   3  'Fixed Dialog
+   BorderStyle     =   0  'None
    Caption         =   "AutoShutdown"
    ClientHeight    =   1845
    ClientLeft      =   8235
@@ -10,7 +10,6 @@ Begin VB.Form Form1
    Icon            =   "Form1.frx":0000
    LinkTopic       =   "Form1"
    MaxButton       =   0   'False
-   MinButton       =   0   'False
    ScaleHeight     =   1845
    ScaleWidth      =   4395
    StartUpPosition =   2  'CenterScreen
@@ -58,7 +57,7 @@ Begin VB.Form Form1
          Strikethrough   =   0   'False
       EndProperty
       CustomFormat    =   "h:mm tt"
-      Format          =   7929859
+      Format          =   8060931
       UpDown          =   -1  'True
       CurrentDate     =   41712
    End
@@ -249,45 +248,61 @@ Sub UpdateNotIconTip()
     Seconds = Seconds Mod 3600
     min = Seconds \ 60
     Seconds = Seconds Mod 60
-    tray.ToolTip = "Shutdown at " & Format(dtPicker.Value, "h:nn AM/PM") & vbNewLine _
-    & "Remaining: " & hr & "hours, " & min & " minutes, " & Seconds & " seconds" & vbNullChar
+    Dim tip As String
+    tip = "Shutdown at " & Format(dtPicker.Value, "h:nn AM/PM") & vbNewLine _
+    & "Remaining: " & hr & " hours, " & min & " minutes, " & Seconds & " seconds" & vbNullChar
+    tray.ToolTip = tip
+    tray.ShowBalloonTip tip, "AutoShutdown", NIIF_INFO, 50000
+End Sub
+
+Private Sub Form_Resize()
+    If Me.WindowState = vbMinimized Then
+        If myTimer.Enabled Then
+            'Me.Hide
+            UpdateNotIconTip
+        End If
+    End If
 End Sub
 
 Private Sub stopButton_Click()
     ToggleTimer
-End Sub
-
-Private Sub openMenuItem_Click()
-    Me.Show ' show form
-    Shell_NotifyIcon NIM_DELETE, nid ' del tray icon
+    CloseTray
 End Sub
 
 Private Sub Form_QueryUnload(Cancel As Integer, UnloadMode As Integer)
     If Not tray Is Nothing Then
-        Unload tray
-        Set tray = Nothing
+        CloseTray
     End If
+End Sub
+
+Private Sub CloseTray()
+    Unload tray
+    Set tray = Nothing
+End Sub
+
+Private Sub RestoreMainForm()
+    Me.Visible = True
+'    Me.SetFocus
+    'Me.ZOrder
+    'CloseTray
 End Sub
 
 Private Sub tray_MenuClick(ByVal lIndex As Long, ByVal sKey As String)
     Select Case sKey
         Case "open"
-            Me.Show
-            Me.ZOrder
-            tray.Hide
+            RestoreMainForm
             
         Case "close"
             Unload Me
     End Select
 End Sub
 
-Private Sub tray_SysTrayDoubleClick(ByVal eButton As MouseButtonConstants)
-    Me.Show
-    Me.ZOrder
-End Sub
-
 Private Sub tray_SysTrayMouseDown(ByVal eButton As MouseButtonConstants)
-    If eButton = vbRightButton Then
-        tray.ShowMenu
-    End If
+    Select Case eButton
+        Case vbLeftButton
+            RestoreMainForm
+            
+        Case vbRightButton
+            tray.ShowMenu
+    End Select
 End Sub
