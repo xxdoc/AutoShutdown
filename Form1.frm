@@ -10,8 +10,10 @@ Begin VB.Form Form1
    Icon            =   "Form1.frx":0000
    LinkTopic       =   "Form1"
    MaxButton       =   0   'False
+   MinButton       =   0   'False
    ScaleHeight     =   1845
    ScaleWidth      =   4395
+   ShowInTaskbar   =   0   'False
    StartUpPosition =   2  'CenterScreen
    Begin VB.CheckBox silentStartCB 
       Caption         =   "&Run silently"
@@ -57,7 +59,7 @@ Begin VB.Form Form1
          Strikethrough   =   0   'False
       EndProperty
       CustomFormat    =   "h:mm tt"
-      Format          =   8060931
+      Format          =   41877507
       UpDown          =   -1  'True
       CurrentDate     =   41712
    End
@@ -85,15 +87,20 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
+Private Declare Function BringWindowToTop Lib "user32" (ByVal hWnd As Long) As Long
+
 Dim cfgFile As String
 Dim WithEvents myTimer As SelfTimer
 Attribute myTimer.VB_VarHelpID = -1
 Private WithEvents tray As frmSysTray
 Attribute tray.VB_VarHelpID = -1
 
+' todo
+' double clicks for context menu to show?
+' close button not working??
+
 Private Sub Form_Load()
-    'MakeTopMost Me.hwnd
-    'Me.ShowInTaskbar = False
+    MakeTopMost Me.hWnd
     Set myTimer = New SelfTimer
     myTimer.Enabled = False
     cfgFile = App.Path & "\" & App.EXEName & ".cfg"
@@ -116,7 +123,6 @@ Private Sub LoadSettings()
 
     st = ReadIni(cfgFile, "Main", "autoStart")
     If st <> "" Then
-        Debug.Print st
         autoStartCB.Value = CInt(st)
     Else
         autoStartCB.Value = 0
@@ -127,21 +133,6 @@ Private Sub LoadSettings()
     Else
         silentStartCB.Value = 0
     End If
-End Sub
-
-Private Sub Form_Unload(Cancel As Integer)
-    SaveSettings
-End Sub
-
-Private Sub SaveSettings()
-    If autoStartCB.Value Then
-        CreateShortcut
-    Else
-        DeleteShortcut
-    End If
-    WriteIni cfgFile, "Main", "alarmTime", Format(dtPicker.Value, "h:nn AM/PM")
-    WriteIni cfgFile, "Main", "autoStart", autoStartCB.Value
-    WriteIni cfgFile, "Main", "silentStart", silentStartCB.Value
 End Sub
 
 Private Sub CreateShortcut()
@@ -213,7 +204,7 @@ Private Sub startButton_Click()
     ' time to fire is tomorrow
     Seconds = DateDiff("s", TimeValue(Now), TimeValue(dtPicker.Value))
     If Seconds <= 0 Then
-        Debug.Print Seconds
+        'Debug.Print Seconds
         ' ensure constants are long
         Seconds = Seconds + 24! * 3600!
     End If
@@ -228,12 +219,14 @@ End Sub
 
 Sub minToTray()
     Me.Hide
-    Set tray = New frmSysTray
-    With tray
-        .AddMenuItem "&Open", "open", True
-        .AddMenuItem "&Close", "close"
-        .IconHandle = Me.Icon.Handle
-    End With
+    If tray Is Nothing Then
+        Set tray = New frmSysTray
+        With tray
+            .AddMenuItem "&Open", "open", True
+            .AddMenuItem "&Close", "close"
+            .IconHandle = Me.Icon.Handle
+        End With
+    End If
     UpdateNotIconTip
 End Sub
 
@@ -255,24 +248,9 @@ Sub UpdateNotIconTip()
     tray.ShowBalloonTip tip, "AutoShutdown", NIIF_INFO, 50000
 End Sub
 
-Private Sub Form_Resize()
-    If Me.WindowState = vbMinimized Then
-        If myTimer.Enabled Then
-            'Me.Hide
-            UpdateNotIconTip
-        End If
-    End If
-End Sub
-
 Private Sub stopButton_Click()
     ToggleTimer
     CloseTray
-End Sub
-
-Private Sub Form_QueryUnload(Cancel As Integer, UnloadMode As Integer)
-    If Not tray Is Nothing Then
-        CloseTray
-    End If
 End Sub
 
 Private Sub CloseTray()
@@ -281,10 +259,13 @@ Private Sub CloseTray()
 End Sub
 
 Private Sub RestoreMainForm()
-    Me.Visible = True
+    Me.Show
+    'BringWindowToTop Me.hwnd
+    'MakeTopMost Me.hWnd
 '    Me.SetFocus
-    'Me.ZOrder
+    Me.ZOrder
     'CloseTray
+    MakeTopMost Me.hWnd
 End Sub
 
 Private Sub tray_MenuClick(ByVal lIndex As Long, ByVal sKey As String)
@@ -305,4 +286,31 @@ Private Sub tray_SysTrayMouseDown(ByVal eButton As MouseButtonConstants)
         Case vbRightButton
             tray.ShowMenu
     End Select
+End Sub
+
+Private Sub Form_QueryUnload(Cancel As Integer, UnloadMode As Integer)
+    If Me.Visible And myTimer.Enabled Then
+        Cancel = 1
+        minToTray
+        Exit Sub
+    End If
+        
+    If Not tray Is Nothing Then
+        CloseTray
+    End If
+End Sub
+
+Private Sub Form_Unload(Cancel As Integer)
+    SaveSettings
+End Sub
+
+Private Sub SaveSettings()
+    If autoStartCB.Value Then
+        CreateShortcut
+    Else
+        DeleteShortcut
+    End If
+    WriteIni cfgFile, "Main", "alarmTime", Format(dtPicker.Value, "h:nn AM/PM")
+    WriteIni cfgFile, "Main", "autoStart", autoStartCB.Value
+    WriteIni cfgFile, "Main", "silentStart", silentStartCB.Value
 End Sub
