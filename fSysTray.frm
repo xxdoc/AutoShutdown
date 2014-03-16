@@ -64,7 +64,7 @@ Private Const NOTIFYICON_VERSION = 3
 
 Private Type NOTIFYICONDATAA
    cbSize As Long             ' 4
-   hwnd As Long               ' 8
+   hWnd As Long               ' 8
    uID As Long                ' 12
    uFlags As Long             ' 16
    uCallbackMessage As Long   ' 20
@@ -80,7 +80,7 @@ Private Type NOTIFYICONDATAA
 End Type
 Private Type NOTIFYICONDATAW
    cbSize As Long             ' 4
-   hwnd As Long               ' 8
+   hWnd As Long               ' 8
    uID As Long                ' 12
    uFlags As Long             ' 16
    uCallbackMessage As Long   ' 20
@@ -104,7 +104,7 @@ Private Const NOTIFYICONDATAA_V1_SIZE_U = 152
 Private Const NOTIFYICONDATAA_V2_SIZE_A = 488
 Private Const NOTIFYICONDATAA_V2_SIZE_U = 936
 
-Private Declare Function SetForegroundWindow Lib "user32" (ByVal hwnd As Long) As Long
+Private Declare Function SetForegroundWindow Lib "user32" (ByVal hWnd As Long) As Long
 
 Private Const WM_MOUSEMOVE = &H200
 Private Const WM_LBUTTONDBLCLK = &H203
@@ -113,6 +113,7 @@ Private Const WM_LBUTTONUP = &H202
 Private Const WM_RBUTTONDBLCLK = &H206
 Private Const WM_RBUTTONDOWN = &H204
 Private Const WM_RBUTTONUP = &H205
+Private Const WM_MOUSEHOVER = 673
 
 Private Const WM_USER = &H400
 
@@ -136,6 +137,7 @@ Public Event BalloonShow()
 Public Event BalloonHide()
 Public Event BalloonTimeOut()
 Public Event BalloonClicked()
+Public Event SysTrayHover()
 
 Public Enum EBalloonIconTypes
    NIIF_NONE = 0
@@ -279,7 +281,7 @@ Public Property Let DefaultMenuIndex(ByVal lIndex As Long)
 End Property
 
 Public Function ShowMenu()
-   SetForegroundWindow Me.hwnd
+   SetForegroundWindow Me.hWnd
    If (m_iDefaultIndex > -1) Then
       Me.PopupMenu mnuPopup, 0, , , mnuSysTray(m_iDefaultIndex)
    Else
@@ -311,7 +313,7 @@ Private Sub Form_Load()
    
    If (m_bUseUnicode) Then
       With nfIconDataW
-         .hwnd = Me.hwnd
+         .hWnd = Me.hWnd
          .uID = Me.Icon
          .uFlags = NIF_ICON Or NIF_MESSAGE Or NIF_TIP
          .uCallbackMessage = WM_MOUSEMOVE
@@ -328,7 +330,7 @@ Private Sub Form_Load()
       End If
    Else
       With nfIconDataA
-         .hwnd = Me.hwnd
+         .hWnd = Me.hWnd
          .uID = Me.Icon
          .uFlags = NIF_ICON Or NIF_MESSAGE Or NIF_TIP
          .uCallbackMessage = WM_MOUSEMOVE
@@ -421,8 +423,9 @@ Dim lX As Long
       RaiseEvent BalloonTimeOut
    Case NIN_BALLOONUSERCLICK
       RaiseEvent BalloonClicked
+   Case WM_MOUSEHOVER
+       RaiseEvent SysTrayHover
    End Select
-
 End Sub
 
 Private Sub Form_QueryUnload(Cancel As Integer, UnloadMode As Integer)

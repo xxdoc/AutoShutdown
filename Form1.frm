@@ -59,7 +59,7 @@ Begin VB.Form Form1
          Strikethrough   =   0   'False
       EndProperty
       CustomFormat    =   "h:mm tt"
-      Format          =   41877507
+      Format          =   40828931
       UpDown          =   -1  'True
       CurrentDate     =   41712
    End
@@ -87,17 +87,17 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
-Private Declare Function BringWindowToTop Lib "user32" (ByVal hWnd As Long) As Long
+Option Explicit
+
+' todo
+' update tip with correct interval on hover
 
 Dim cfgFile As String
 Dim WithEvents myTimer As SelfTimer
 Attribute myTimer.VB_VarHelpID = -1
 Private WithEvents tray As frmSysTray
 Attribute tray.VB_VarHelpID = -1
-
-' todo
-' double clicks for context menu to show?
-' close button not working??
+Dim fired As Boolean
 
 Private Sub Form_Load()
     MakeTopMost Me.hWnd
@@ -149,6 +149,7 @@ Private Sub CreateShortcut()
     Dim shlObj As Object
     Dim fso As Object
     Dim shortcut As Object
+    Dim targetPath As String
     Set fso = CreateObject("Scripting.FileSystemObject")
     targetPath = App.Path & "\" & App.EXEName & ".exe"
     Set shortcut = WshObj.CreateShortcut(shortcutPath)
@@ -171,9 +172,16 @@ Private Sub DeleteShortcut()
 End Sub
 
 Private Sub myTimer_Timer(ByVal Seconds As Currency)
-    ToggleTimer
-    shutdown
-    'MsgBox "fire"
+    If Not fired Then
+        fired = True
+        myTimer.Interval = 60000
+        myTimer.Enabled = True
+        tray.ShowBalloonTip "Computer will shutdown in 1 minute", "AutoShutdown", NIIF_INFO
+    Else
+        ToggleTimer
+        shutdown
+        'MsgBox "shutdown"
+    End If
 End Sub
 
 Private Sub ToggleTimer()
@@ -208,6 +216,17 @@ Private Sub startButton_Click()
         ' ensure constants are long
         Seconds = Seconds + 24! * 3600!
     End If
+    
+    If Seconds <= 60 Then
+        fired = True
+    Else
+        ' set it false to that when timer fires
+        ' it displays the warn balloon tip, then sets itself
+        ' to fire again after 60 seconds
+        fired = False
+        Seconds = Seconds - 60
+    End If
+    
     'Debug.Print DateDiff("h", Now, dtPicker.Value)
     'Debug.Print DateDiff("n", Now, dtPicker.Value)
     'Debug.Print "seconds: " & seconds
@@ -236,19 +255,24 @@ Sub UpdateNotIconTip()
     If Seconds <= 0 Then
         Seconds = Seconds + 24! * 3600!
     End If
+    
+    Dim tip As String
+    tip = "Shutdown at " & Format(dtPicker.Value, "h:nn AM/PM")
+    tray.ToolTip = tip
+    
     Dim hr, min, sec As Integer
     hr = Seconds \ 3600
     Seconds = Seconds Mod 3600
     min = Seconds \ 60
     Seconds = Seconds Mod 60
-    Dim tip As String
-    tip = "Shutdown at " & Format(dtPicker.Value, "h:nn AM/PM") & vbNewLine _
-    & "Remaining: " & hr & " hours, " & min & " minutes, " & Seconds & " seconds" & vbNullChar
-    tray.ToolTip = tip
-    tray.ShowBalloonTip tip, "AutoShutdown", NIIF_INFO, 50000
+    
+    Dim bTip As String
+    bTip = tip & vbNewLine & "Remaining: " & hr & " hours, " & min & " minutes, " & Seconds & " seconds" & vbNullChar
+    tray.ShowBalloonTip bTip, "AutoShutdown", NIIF_INFO
 End Sub
 
 Private Sub stopButton_Click()
+    fired = False
     ToggleTimer
     CloseTray
 End Sub
@@ -265,7 +289,7 @@ Private Sub RestoreMainForm()
 '    Me.SetFocus
     Me.ZOrder
     'CloseTray
-    MakeTopMost Me.hWnd
+    'MakeTopMost Me.hWnd
 End Sub
 
 Private Sub tray_MenuClick(ByVal lIndex As Long, ByVal sKey As String)
