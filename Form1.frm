@@ -8,6 +8,7 @@ Begin VB.Form Form1
    ClientTop       =   4485
    ClientWidth     =   4395
    Icon            =   "Form1.frx":0000
+   KeyPreview      =   -1  'True
    LinkTopic       =   "Form1"
    MaxButton       =   0   'False
    MinButton       =   0   'False
@@ -59,7 +60,7 @@ Begin VB.Form Form1
          Strikethrough   =   0   'False
       EndProperty
       CustomFormat    =   "h:mm tt"
-      Format          =   40828931
+      Format          =   82116611
       UpDown          =   -1  'True
       CurrentDate     =   41712
    End
@@ -90,14 +91,63 @@ Attribute VB_Exposed = False
 Option Explicit
 
 ' todo
-' update tip with correct interval on hover
+' update tip with correct interval on hover?
+' catch after minimize event: then min button minimizes to only if running
+'
+' exit badal close
+' c-s-t: test mode
+' c-a: about
 
 Dim cfgFile As String
 Dim WithEvents myTimer As SelfTimer
 Attribute myTimer.VB_VarHelpID = -1
 Private WithEvents tray As frmSysTray
 Attribute tray.VB_VarHelpID = -1
+Private easter As EasterEggForm
+Attribute easter.VB_VarHelpID = -1
 Dim fired As Boolean
+Dim testMode As Boolean
+
+Private Sub Form_KeyDown(KeyCode As Integer, Shift As Integer)
+    Select Case KeyCode
+        Case vbKeyT
+            If Shift = (vbCtrlMask Or vbShiftMask) Then
+                MakeNormal Me.hWnd
+                ToggleTestMode
+                MakeTopMost Me.hWnd
+            End If
+        
+        Case vbKeyA
+            If Shift = vbCtrlMask Then
+                MakeNormal Me.hWnd
+                MsgBox "Author: El-Tabei M. El-Tabei"
+                MakeTopMost Me.hWnd
+            End If
+        
+        Case vbKeyH
+            If Shift = (vbCtrlMask Or vbShiftMask) Then
+                EasterEgg
+            End If
+    End Select
+End Sub
+
+Private Sub EasterEgg()
+    If easter Is Nothing Then
+        Set easter = New EasterEggForm
+    End If
+    easter.Left = Me.Left + Me.Width + 150
+    easter.Top = Me.Top
+    easter.Show
+End Sub
+
+Private Sub ToggleTestMode()
+    If Not testMode Then
+            MsgBox "Test mode: On"
+        Else
+            MsgBox "Test mode: Off"
+        End If
+    testMode = Not testMode
+End Sub
 
 Private Sub Form_Load()
     MakeTopMost Me.hWnd
@@ -179,8 +229,13 @@ Private Sub myTimer_Timer(ByVal Seconds As Currency)
         tray.ShowBalloonTip "Computer will shutdown in 1 minute", "AutoShutdown", NIIF_INFO
     Else
         ToggleTimer
-        shutdown
-        'MsgBox "shutdown"
+        If Not testMode Then
+            shutdown
+        Else
+            MakeNormal Me.hWnd
+            MsgBox "shutdown"
+            MakeTopMost Me.hWnd
+        End If
     End If
 End Sub
 
@@ -198,7 +253,9 @@ Private Sub shutdown()
         Unload tray
         Unload Me
     Else
+        MakeNormal Me.hWnd
         MsgBox "Shutdown error"
+        MakeTopMost Me.hWnd
     End If
 End Sub
 
@@ -264,10 +321,39 @@ Sub UpdateNotIconTip()
     hr = Seconds \ 3600
     Seconds = Seconds Mod 3600
     min = Seconds \ 60
-    Seconds = Seconds Mod 60
+    sec = Seconds Mod 60
     
+    Dim timeStr As String
+    If hr > 0 Then
+        If hr = 1 Then
+            timeStr = hr & " hour"
+        Else
+            timeStr = hr & " hours"
+        End If
+        If min > 0 Or sec > 0 Then
+            timeStr = timeStr & ", "
+        End If
+    End If
+    
+    If min > 0 Then
+        If min = 1 Then
+            timeStr = timeStr & min & " minute"
+        Else
+            timeStr = timeStr & min & " minutes"
+        End If
+        If sec > 0 Then
+            timeStr = timeStr & ", "
+        End If
+    End If
+    If sec > 0 Then
+        If sec = 1 Then
+            timeStr = timeStr & sec & " second"
+        Else
+            timeStr = timeStr & sec & " seconds"
+        End If
+    End If
     Dim bTip As String
-    bTip = tip & vbNewLine & "Remaining: " & hr & " hours, " & min & " minutes, " & Seconds & " seconds" & vbNullChar
+    bTip = tip & vbNewLine & "Remaining: " & timeStr & vbNullChar
     tray.ShowBalloonTip bTip, "AutoShutdown", NIIF_INFO
 End Sub
 
@@ -321,6 +407,10 @@ Private Sub Form_QueryUnload(Cancel As Integer, UnloadMode As Integer)
         
     If Not tray Is Nothing Then
         CloseTray
+    End If
+    If Not easter Is Nothing Then
+        Unload easter
+        Set easter = Nothing
     End If
 End Sub
 
