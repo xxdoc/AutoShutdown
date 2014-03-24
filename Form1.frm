@@ -98,7 +98,7 @@ Begin VB.Form Form1
          Strikethrough   =   0   'False
       EndProperty
       CustomFormat    =   "h:mm tt"
-      Format          =   95027203
+      Format          =   3538947
       UpDown          =   -1  'True
       CurrentDate     =   0.628472222222222
    End
@@ -135,10 +135,8 @@ Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
 Option Explicit
-
-' todo
-' update tip with correct interval on hover?
 ' catch after minimize event: then min button minimizes to only if running
+Private Declare Function GetTickCount Lib "kernel32" () As Long
 
 Dim cfgFile As String
 Dim WithEvents myTimer As SelfTimer
@@ -150,6 +148,7 @@ Attribute easter.VB_VarHelpID = -1
 Dim fired As Boolean
 Dim testMode As Boolean
 Dim warnSeconds As Long
+Dim lastCall As Long
 
 Private Sub Form_Load()
     MakeTopMost Me.hWnd
@@ -168,7 +167,7 @@ Private Sub LoadSettings()
     Dim st As String
     st = ReadIni(cfgFile, "Main", "alarmTime")
     If st <> "" Then
-        DTPicker.Value = TimeValue(CDate(st))
+        dtPicker.Value = TimeValue(CDate(st))
     End If
 
     st = ReadIni(cfgFile, "Main", "autoStart")
@@ -258,7 +257,7 @@ Private Sub ToggleTimer()
     Dim b As Boolean
     b = Not myTimer.Enabled
     myTimer.Enabled = b
-    DTPicker.Enabled = Not b
+    dtPicker.Enabled = Not b
     startButton.Enabled = Not b
     stopButton.Enabled = b
     If warnCB.Value Then
@@ -287,7 +286,7 @@ Private Sub startButton_Click()
     Dim Seconds As Long
     ' won't use TimeValue() so that the subtraction takes into account if the
     ' time to fire is tomorrow
-    Seconds = DateDiff("s", TimeValue(Now), TimeValue(DTPicker.Value))
+    Seconds = DateDiff("s", TimeValue(Now), TimeValue(dtPicker.Value))
     If Seconds <= 0 Then
         'Debug.Print Seconds
         ' ensure constants are long
@@ -327,16 +326,22 @@ Sub minToTray()
     UpdateNotIconTip
 End Sub
 
-Sub UpdateNotIconTip()
+Sub UpdateNotIconTip(Optional showBalloon As Boolean = True)
+    If GetTickCount - lastCall < 500 Then
+        'Debug.Print "exiting"
+        lastCall = GetTickCount
+        Exit Sub
+    End If
+    
     Dim Seconds As Long
-    Seconds = DateDiff("s", TimeValue(Now), TimeValue(DTPicker.Value))
+    Seconds = DateDiff("s", TimeValue(Now), TimeValue(dtPicker.Value))
     If Seconds <= 0 Then
         Seconds = Seconds + 24! * 3600!
     End If
     
     Dim tip As String
-    tip = "Shutdown at " & Format(DTPicker.Value, "h:nn AM/PM")
-    tray.ToolTip = tip
+    tip = "Shutdown at " & Format(dtPicker.Value, "h:nn AM/PM")
+    'tray.ToolTip = tip
     
     Dim hr, min, sec As Integer
     hr = Seconds \ 3600
@@ -375,7 +380,11 @@ Sub UpdateNotIconTip()
     End If
     Dim bTip As String
     bTip = tip & vbNewLine & "Remaining: " & timeStr & vbNullChar
-    tray.ShowBalloonTip bTip, Me.Caption, NIIF_INFO
+    tray.ToolTip = bTip
+    If showBalloon Then
+        tray.ShowBalloonTip bTip, Me.Caption, NIIF_INFO
+    End If
+    lastCall = GetTickCount
 End Sub
 
 Private Sub stopButton_Click()
@@ -412,6 +421,14 @@ Private Sub tray_SysTrayMouseDown(ByVal eButton As MouseButtonConstants)
         Case vbRightButton
             tray.ShowMenu
     End Select
+End Sub
+
+'Private Sub tray_SysTrayHover()
+'    MsgBox "hover"
+'End Sub
+
+Private Sub tray_SysTrayMouseMove()
+    UpdateNotIconTip False
 End Sub
 
 Private Sub Form_KeyDown(KeyCode As Integer, Shift As Integer)
@@ -483,7 +500,7 @@ Private Sub SaveSettings()
     Else
         DeleteShortcut
     End If
-    WriteIni cfgFile, "Main", "alarmTime", Format(DTPicker.Value, "h:nn AM/PM")
+    WriteIni cfgFile, "Main", "alarmTime", Format(dtPicker.Value, "h:nn AM/PM")
     WriteIni cfgFile, "Main", "autoStart", autoStartCB.Value
     WriteIni cfgFile, "Main", "silentStart", silentStartCB.Value
     WriteIni cfgFile, "Main", "warn", warnCB.Value
