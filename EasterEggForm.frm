@@ -1,7 +1,7 @@
 VERSION 5.00
 Begin VB.Form EasterEggForm 
    BorderStyle     =   1  'Fixed Single
-   Caption         =   "Õ„œÌ"
+   Caption         =   "hamdy"
    ClientHeight    =   2805
    ClientLeft      =   45
    ClientTop       =   375

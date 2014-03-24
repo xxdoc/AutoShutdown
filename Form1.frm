@@ -3,7 +3,7 @@ Object = "{86CF1D34-0C5F-11D2-A9FC-0000F8754DA1}#2.0#0"; "mscomct2.ocx"
 Begin VB.Form Form1 
    BorderStyle     =   0  'None
    Caption         =   "AutoShutdown"
-   ClientHeight    =   1845
+   ClientHeight    =   2160
    ClientLeft      =   8235
    ClientTop       =   4485
    ClientWidth     =   4395
@@ -12,20 +12,58 @@ Begin VB.Form Form1
    LinkTopic       =   "Form1"
    MaxButton       =   0   'False
    MinButton       =   0   'False
-   ScaleHeight     =   1845
+   ScaleHeight     =   2160
    ScaleWidth      =   4395
    ShowInTaskbar   =   0   'False
    StartUpPosition =   2  'CenterScreen
+   Begin VB.TextBox warnIntervalTB 
+      Height          =   405
+      Left            =   2280
+      TabIndex        =   7
+      Text            =   "1"
+      Top             =   1560
+      Width           =   360
+   End
+   Begin MSComCtl2.UpDown UpDown1 
+      Height          =   405
+      Left            =   2640
+      TabIndex        =   6
+      Top             =   1560
+      Width           =   255
+      _ExtentX        =   450
+      _ExtentY        =   714
+      _Version        =   393216
+      Value           =   1
+      BuddyControl    =   "warnIntervalTB"
+      BuddyDispid     =   196619
+      OrigLeft        =   3240
+      OrigTop         =   1560
+      OrigRight       =   3495
+      OrigBottom      =   2055
+      Min             =   1
+      SyncBuddy       =   -1  'True
+      BuddyProperty   =   0
+      Enabled         =   -1  'True
+   End
+   Begin VB.CheckBox warnCB 
+      Caption         =   "&Warn before shutdown by"
+      Height          =   255
+      Left            =   120
+      TabIndex        =   5
+      Top             =   1680
+      Value           =   1  'Checked
+      Width           =   2415
+   End
    Begin VB.CheckBox silentStartCB 
-      Caption         =   "&Run silently"
+      Caption         =   "Start timer &on startup"
       Height          =   195
       Left            =   120
       TabIndex        =   4
-      Top             =   1440
+      Top             =   1320
       Width           =   2055
    End
    Begin VB.CheckBox autoStartCB 
-      Caption         =   "Start automatically on Windows &logon"
+      Caption         =   "&Run on Windows logon"
       Height          =   255
       Left            =   120
       TabIndex        =   3
@@ -60,9 +98,9 @@ Begin VB.Form Form1
          Strikethrough   =   0   'False
       EndProperty
       CustomFormat    =   "h:mm tt"
-      Format          =   82116611
+      Format          =   95027203
       UpDown          =   -1  'True
-      CurrentDate     =   41712
+      CurrentDate     =   0.628472222222222
    End
    Begin VB.CommandButton startButton 
       Caption         =   "&Start"
@@ -71,6 +109,14 @@ Begin VB.Form Form1
       TabIndex        =   0
       Top             =   240
       Width           =   975
+   End
+   Begin VB.Label Label1 
+      Caption         =   "minute(s)"
+      Height          =   255
+      Left            =   3000
+      TabIndex        =   8
+      Top             =   1680
+      Width           =   735
    End
    Begin VB.Menu trayMenu 
       Caption         =   "TrayMenu"
@@ -93,10 +139,6 @@ Option Explicit
 ' todo
 ' update tip with correct interval on hover?
 ' catch after minimize event: then min button minimizes to only if running
-'
-' exit badal close
-' c-s-t: test mode
-' c-a: about
 
 Dim cfgFile As String
 Dim WithEvents myTimer As SelfTimer
@@ -107,47 +149,7 @@ Private easter As EasterEggForm
 Attribute easter.VB_VarHelpID = -1
 Dim fired As Boolean
 Dim testMode As Boolean
-
-Private Sub Form_KeyDown(KeyCode As Integer, Shift As Integer)
-    Select Case KeyCode
-        Case vbKeyT
-            If Shift = (vbCtrlMask Or vbShiftMask) Then
-                MakeNormal Me.hWnd
-                ToggleTestMode
-                MakeTopMost Me.hWnd
-            End If
-        
-        Case vbKeyA
-            If Shift = vbCtrlMask Then
-                MakeNormal Me.hWnd
-                MsgBox "Author: El-Tabei M. El-Tabei"
-                MakeTopMost Me.hWnd
-            End If
-        
-        Case vbKeyH
-            If Shift = (vbCtrlMask Or vbShiftMask) Then
-                EasterEgg
-            End If
-    End Select
-End Sub
-
-Private Sub EasterEgg()
-    If easter Is Nothing Then
-        Set easter = New EasterEggForm
-    End If
-    easter.Left = Me.Left + Me.Width + 150
-    easter.Top = Me.Top
-    easter.Show
-End Sub
-
-Private Sub ToggleTestMode()
-    If Not testMode Then
-            MsgBox "Test mode: On"
-        Else
-            MsgBox "Test mode: Off"
-        End If
-    testMode = Not testMode
-End Sub
+Dim warnSeconds As Long
 
 Private Sub Form_Load()
     MakeTopMost Me.hWnd
@@ -166,9 +168,7 @@ Private Sub LoadSettings()
     Dim st As String
     st = ReadIni(cfgFile, "Main", "alarmTime")
     If st <> "" Then
-        dtPicker.Value = TimeValue(CDate(st))
-    Else
-        dtPicker.Value = TimeValue(Now)
+        DTPicker.Value = TimeValue(CDate(st))
     End If
 
     st = ReadIni(cfgFile, "Main", "autoStart")
@@ -182,6 +182,14 @@ Private Sub LoadSettings()
         silentStartCB.Value = CInt(st)
     Else
         silentStartCB.Value = 0
+    End If
+    st = ReadIni(cfgFile, "Main", "warnInterval")
+    If st <> "" Then
+        warnIntervalTB.Text = st
+    End If
+    st = ReadIni(cfgFile, "Main", "warn")
+    If st <> "" Then
+        warnCB.Value = CInt(st)
     End If
 End Sub
 
@@ -224,9 +232,16 @@ End Sub
 Private Sub myTimer_Timer(ByVal Seconds As Currency)
     If Not fired Then
         fired = True
-        myTimer.Interval = 60000
+        myTimer.Interval = warnSeconds * 1000!
         myTimer.Enabled = True
-        tray.ShowBalloonTip "Computer will shutdown in 1 minute", "AutoShutdown", NIIF_INFO
+        
+        If warnCB.Value Then
+            If warnIntervalTB.Text = "1" Then
+                tray.ShowBalloonTip "Computer will shutdown in 1 minute", Me.Caption, NIIF_INFO
+            Else
+                tray.ShowBalloonTip "Computer will shutdown in " & warnIntervalTB.Text & " minutes", Me.Caption, NIIF_INFO
+            End If
+        End If
     Else
         ToggleTimer
         If Not testMode Then
@@ -243,9 +258,14 @@ Private Sub ToggleTimer()
     Dim b As Boolean
     b = Not myTimer.Enabled
     myTimer.Enabled = b
-    dtPicker.Enabled = Not b
+    DTPicker.Enabled = Not b
     startButton.Enabled = Not b
     stopButton.Enabled = b
+    If warnCB.Value Then
+        ' essential, so that warnSeconds doesn't get changed after we start Timer
+        warnIntervalTB.Enabled = Not b
+        UpDown1.Enabled = Not b
+    End If
 End Sub
 
 Private Sub shutdown()
@@ -267,21 +287,22 @@ Private Sub startButton_Click()
     Dim Seconds As Long
     ' won't use TimeValue() so that the subtraction takes into account if the
     ' time to fire is tomorrow
-    Seconds = DateDiff("s", TimeValue(Now), TimeValue(dtPicker.Value))
+    Seconds = DateDiff("s", TimeValue(Now), TimeValue(DTPicker.Value))
     If Seconds <= 0 Then
         'Debug.Print Seconds
         ' ensure constants are long
         Seconds = Seconds + 24! * 3600!
     End If
     
-    If Seconds <= 60 Then
+    warnSeconds = CInt(warnIntervalTB.Text) * 60!
+    If Seconds <= warnSeconds Then
         fired = True
     Else
         ' set it false to that when timer fires
         ' it displays the warn balloon tip, then sets itself
         ' to fire again after 60 seconds
         fired = False
-        Seconds = Seconds - 60
+        Seconds = Seconds - warnSeconds
     End If
     
     'Debug.Print DateDiff("h", Now, dtPicker.Value)
@@ -298,8 +319,8 @@ Sub minToTray()
     If tray Is Nothing Then
         Set tray = New frmSysTray
         With tray
-            .AddMenuItem "&Open", "open", True
-            .AddMenuItem "&Close", "close"
+            .AddMenuItem "&Open", "Open", True
+            .AddMenuItem "&Exit", "Exit"
             .IconHandle = Me.Icon.Handle
         End With
     End If
@@ -308,13 +329,13 @@ End Sub
 
 Sub UpdateNotIconTip()
     Dim Seconds As Long
-    Seconds = DateDiff("s", TimeValue(Now), TimeValue(dtPicker.Value))
+    Seconds = DateDiff("s", TimeValue(Now), TimeValue(DTPicker.Value))
     If Seconds <= 0 Then
         Seconds = Seconds + 24! * 3600!
     End If
     
     Dim tip As String
-    tip = "Shutdown at " & Format(dtPicker.Value, "h:nn AM/PM")
+    tip = "Shutdown at " & Format(DTPicker.Value, "h:nn AM/PM")
     tray.ToolTip = tip
     
     Dim hr, min, sec As Integer
@@ -354,7 +375,7 @@ Sub UpdateNotIconTip()
     End If
     Dim bTip As String
     bTip = tip & vbNewLine & "Remaining: " & timeStr & vbNullChar
-    tray.ShowBalloonTip bTip, "AutoShutdown", NIIF_INFO
+    tray.ShowBalloonTip bTip, Me.Caption, NIIF_INFO
 End Sub
 
 Private Sub stopButton_Click()
@@ -370,20 +391,15 @@ End Sub
 
 Private Sub RestoreMainForm()
     Me.Show
-    'BringWindowToTop Me.hwnd
-    'MakeTopMost Me.hWnd
-'    Me.SetFocus
     Me.ZOrder
-    'CloseTray
-    'MakeTopMost Me.hWnd
 End Sub
 
 Private Sub tray_MenuClick(ByVal lIndex As Long, ByVal sKey As String)
     Select Case sKey
-        Case "open"
+        Case "Open"
             RestoreMainForm
             
-        Case "close"
+        Case "Exit"
             Unload Me
     End Select
 End Sub
@@ -396,6 +412,49 @@ Private Sub tray_SysTrayMouseDown(ByVal eButton As MouseButtonConstants)
         Case vbRightButton
             tray.ShowMenu
     End Select
+End Sub
+
+Private Sub Form_KeyDown(KeyCode As Integer, Shift As Integer)
+    Select Case KeyCode
+        Case vbKeyT
+            If Shift = (vbCtrlMask Or vbShiftMask) Then
+                MakeNormal Me.hWnd
+                ToggleTestMode
+                MakeTopMost Me.hWnd
+            End If
+        
+        Case vbKeyA
+            If Shift = vbCtrlMask Then
+                MakeNormal Me.hWnd
+                MsgBox "Author: El-Tabei M. El-Tabei"
+                MakeTopMost Me.hWnd
+            End If
+        
+        Case vbKeyH
+            If Shift = (vbCtrlMask Or vbShiftMask Or vbAltMask) Then
+                EasterEgg
+            End If
+    End Select
+End Sub
+
+Private Sub EasterEgg()
+    If easter Is Nothing Then
+        Set easter = New EasterEggForm
+    End If
+    easter.Left = Me.Left + Me.Width + 150
+    easter.Top = Me.Top
+    easter.Show
+End Sub
+
+Private Sub ToggleTestMode()
+    If Not testMode Then
+            'MsgBox "Test mode: On"
+            Me.Caption = "AutoShutdown [Test Mode]"
+        Else
+            'MsgBox "Test mode: Off"
+            Me.Caption = "AutoShutdown"
+        End If
+    testMode = Not testMode
 End Sub
 
 Private Sub Form_QueryUnload(Cancel As Integer, UnloadMode As Integer)
@@ -424,7 +483,14 @@ Private Sub SaveSettings()
     Else
         DeleteShortcut
     End If
-    WriteIni cfgFile, "Main", "alarmTime", Format(dtPicker.Value, "h:nn AM/PM")
+    WriteIni cfgFile, "Main", "alarmTime", Format(DTPicker.Value, "h:nn AM/PM")
     WriteIni cfgFile, "Main", "autoStart", autoStartCB.Value
     WriteIni cfgFile, "Main", "silentStart", silentStartCB.Value
+    WriteIni cfgFile, "Main", "warn", warnCB.Value
+    WriteIni cfgFile, "Main", "warnInterval", warnIntervalTB.Text
+End Sub
+
+Private Sub warnCB_Click()
+    warnIntervalTB.Enabled = warnCB.Value
+    UpDown1.Enabled = warnCB.Value
 End Sub
