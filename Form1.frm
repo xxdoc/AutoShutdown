@@ -98,7 +98,7 @@ Begin VB.Form Form1
          Strikethrough   =   0   'False
       EndProperty
       CustomFormat    =   "h:mm tt"
-      Format          =   3538947
+      Format          =   41484291
       UpDown          =   -1  'True
       CurrentDate     =   0.628472222222222
    End
@@ -167,7 +167,7 @@ Private Sub LoadSettings()
     Dim st As String
     st = ReadIni(cfgFile, "Main", "alarmTime")
     If st <> "" Then
-        dtPicker.Value = TimeValue(CDate(st))
+        DTPicker.Value = TimeValue(CDate(st))
     End If
 
     st = ReadIni(cfgFile, "Main", "autoStart")
@@ -257,7 +257,7 @@ Private Sub ToggleTimer()
     Dim b As Boolean
     b = Not myTimer.Enabled
     myTimer.Enabled = b
-    dtPicker.Enabled = Not b
+    DTPicker.Enabled = Not b
     startButton.Enabled = Not b
     stopButton.Enabled = b
     If warnCB.Value Then
@@ -286,7 +286,7 @@ Private Sub startButton_Click()
     Dim Seconds As Long
     ' won't use TimeValue() so that the subtraction takes into account if the
     ' time to fire is tomorrow
-    Seconds = DateDiff("s", TimeValue(Now), TimeValue(dtPicker.Value))
+    Seconds = DateDiff("s", TimeValue(Now), TimeValue(DTPicker.Value))
     If Seconds <= 0 Then
         'Debug.Print Seconds
         ' ensure constants are long
@@ -334,13 +334,13 @@ Sub UpdateNotIconTip(Optional showBalloon As Boolean = True)
     End If
     
     Dim Seconds As Long
-    Seconds = DateDiff("s", TimeValue(Now), TimeValue(dtPicker.Value))
+    Seconds = DateDiff("s", TimeValue(Now), TimeValue(DTPicker.Value))
     If Seconds <= 0 Then
         Seconds = Seconds + 24! * 3600!
     End If
     
     Dim tip As String
-    tip = "Shutdown at " & Format(dtPicker.Value, "h:nn AM/PM")
+    tip = "Shutdown at " & Format(DTPicker.Value, "h:nn AM/PM")
     'tray.ToolTip = tip
     
     Dim hr, min, sec As Integer
@@ -451,6 +451,11 @@ Private Sub Form_KeyDown(KeyCode As Integer, Shift As Integer)
             If Shift = (vbCtrlMask Or vbShiftMask Or vbAltMask) Then
                 EasterEgg
             End If
+        
+        Case vbKey1
+            If Shift = vbCtrlMask And Not myTimer.Enabled Then
+                DTPicker.Value = TimeValue(CStr(TimeSerial(Hour(Now), Minute(Now) + 1, 0)))
+            End If
     End Select
 End Sub
 
@@ -500,7 +505,7 @@ Private Sub SaveSettings()
     Else
         DeleteShortcut
     End If
-    WriteIni cfgFile, "Main", "alarmTime", Format(dtPicker.Value, "h:nn AM/PM")
+    WriteIni cfgFile, "Main", "alarmTime", Format(DTPicker.Value, "h:nn AM/PM")
     WriteIni cfgFile, "Main", "autoStart", autoStartCB.Value
     WriteIni cfgFile, "Main", "silentStart", silentStartCB.Value
     WriteIni cfgFile, "Main", "warn", warnCB.Value
