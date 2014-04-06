@@ -10,6 +10,7 @@ Module=TopMostModule; TopMostModule.bas
 Object={38911DA0-E448-11D0-84A3-00DD01104159}#1.1#0; comct332.ocx
 Form=fSysTray.frm
 Form=EasterEggForm.frm
+Form=countdownForm.frm
 IconForm="Form1"
 Startup="Form1"
 HelpFile=""

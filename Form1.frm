@@ -35,7 +35,7 @@ Begin VB.Form Form1
       _Version        =   393216
       Value           =   1
       BuddyControl    =   "warnIntervalTB"
-      BuddyDispid     =   196619
+      BuddyDispid     =   196609
       OrigLeft        =   3240
       OrigTop         =   1560
       OrigRight       =   3495
@@ -98,7 +98,7 @@ Begin VB.Form Form1
          Strikethrough   =   0   'False
       EndProperty
       CustomFormat    =   "h:mm tt"
-      Format          =   41484291
+      Format          =   40828931
       UpDown          =   -1  'True
       CurrentDate     =   0.628472222222222
    End
@@ -139,21 +139,26 @@ Option Explicit
 Private Declare Function GetTickCount Lib "kernel32" () As Long
 
 Dim cfgFile As String
-Dim WithEvents myTimer As SelfTimer
-Attribute myTimer.VB_VarHelpID = -1
+Dim WithEvents shutdownTimer As SelfTimer
+Attribute shutdownTimer.VB_VarHelpID = -1
+Dim WithEvents warnTimer As SelfTimer
+Attribute warnTimer.VB_VarHelpID = -1
 Private WithEvents tray As frmSysTray
 Attribute tray.VB_VarHelpID = -1
+Private WithEvents cf As countdownForm
+Attribute cf.VB_VarHelpID = -1
 Private easter As EasterEggForm
 Attribute easter.VB_VarHelpID = -1
-Dim fired As Boolean
 Dim testMode As Boolean
 Dim warnSeconds As Long
 Dim lastCall As Long
 
 Private Sub Form_Load()
     MakeTopMost Me.hWnd
-    Set myTimer = New SelfTimer
-    myTimer.Enabled = False
+    Set shutdownTimer = New SelfTimer
+    Set warnTimer = New SelfTimer
+    shutdownTimer.Enabled = False
+    warnTimer.Enabled = False
     cfgFile = App.Path & "\" & App.EXEName & ".cfg"
     LoadSettings
     
@@ -163,11 +168,10 @@ Private Sub Form_Load()
 End Sub
 
 Private Sub LoadSettings()
-    ' add error handling
     Dim st As String
     st = ReadIni(cfgFile, "Main", "alarmTime")
     If st <> "" Then
-        DTPicker.Value = TimeValue(CDate(st))
+        dtPicker.Value = TimeValue(CDate(st))
     End If
 
     st = ReadIni(cfgFile, "Main", "autoStart")
@@ -199,6 +203,7 @@ Private Sub CreateShortcut()
     Dim startupDir As String
     startupDir = WshObj.SpecialFolders("Startup")
     shortcutPath = startupDir & "\" & App.EXEName & ".lnk"
+    ' exit if exists
     If Dir(shortcutPath) <> "" Then
         Exit Sub
     End If
@@ -228,36 +233,48 @@ Private Sub DeleteShortcut()
     Kill shortcutPath
 End Sub
 
-Private Sub myTimer_Timer(ByVal Seconds As Currency)
-    If Not fired Then
-        fired = True
-        myTimer.Interval = warnSeconds * 1000!
-        myTimer.Enabled = True
-        
-        If warnCB.Value Then
-            If warnIntervalTB.Text = "1" Then
-                tray.ShowBalloonTip "Computer will shutdown in 1 minute", Me.Caption, NIIF_INFO
-            Else
-                tray.ShowBalloonTip "Computer will shutdown in " & warnIntervalTB.Text & " minutes", Me.Caption, NIIF_INFO
-            End If
-        End If
+Private Sub shutdownTimer_Timer(ByVal Seconds As Currency)
+    ToggleTimer
+    If testMode Then
+        MakeNormal Me.hWnd
+        MsgBox "shutdown"
+        MakeTopMost Me.hWnd
     Else
-        ToggleTimer
-        If Not testMode Then
-            shutdown
-        Else
-            MakeNormal Me.hWnd
-            MsgBox "shutdown"
-            MakeTopMost Me.hWnd
-        End If
+        shutdown
     End If
+End Sub
+
+Private Sub warnTimer_Timer(ByVal Seconds As Currency)
+    'If warnIntervalTB.Text = "1" Then
+    '    tray.ShowBalloonTip "Computer will shutdown in 1 minute", Me.Caption, NIIF_INFO
+    'Else
+    '    tray.ShowBalloonTip "Computer will shutdown in " & warnIntervalTB.Text & " minutes", Me.Caption, NIIF_INFO
+    'End If
+    warnTimer.Enabled = False
+    ShowCountdownForm warnSeconds
+End Sub
+
+Private Sub ShowCountdownForm(ws As Long)
+    Set cf = New countdownForm
+    With cf
+        .Interval = ws
+        .Caption = Me.Caption
+        .Icon = Me.Icon
+        .Show
+    End With
+End Sub
+
+Private Sub cf_Cancelled()
+    'ToggleTimer
+    RestoreMainForm
+    stopButton_Click
 End Sub
 
 Private Sub ToggleTimer()
     Dim b As Boolean
-    b = Not myTimer.Enabled
-    myTimer.Enabled = b
-    DTPicker.Enabled = Not b
+    b = Not shutdownTimer.Enabled
+    shutdownTimer.Enabled = b
+    dtPicker.Enabled = Not b
     startButton.Enabled = Not b
     stopButton.Enabled = b
     If warnCB.Value Then
@@ -280,37 +297,37 @@ End Sub
 
 Private Sub startButton_Click()
     ' if time has passed, fire tomorrow!
-    'MsgBox dtPicker.Day
-    'Debug.Print Format(dtPicker.Value, "dd MM yyyy hh:mm am/pm")
-    'MsgBox Format(dtPicker.Value, "h:mm AM/PM")
     Dim Seconds As Long
     ' won't use TimeValue() so that the subtraction takes into account if the
     ' time to fire is tomorrow
-    Seconds = DateDiff("s", TimeValue(Now), TimeValue(DTPicker.Value))
+    Seconds = DateDiff("s", TimeValue(Now), TimeValue(dtPicker.Value))
     If Seconds <= 0 Then
-        'Debug.Print Seconds
         ' ensure constants are long
         Seconds = Seconds + 24! * 3600!
     End If
     
     warnSeconds = CInt(warnIntervalTB.Text) * 60!
     If Seconds <= warnSeconds Then
-        fired = True
+        ShowCountdownForm Seconds
     Else
-        ' set it false to that when timer fires
-        ' it displays the warn balloon tip, then sets itself
-        ' to fire again after 60 seconds
-        fired = False
-        Seconds = Seconds - warnSeconds
+        ' fire warnTimer warnSeconds before shutdown
+        warnTimer.Interval = (Seconds - warnSeconds) * 1000
+        warnTimer.Enabled = warnCB.Enabled
     End If
     
-    'Debug.Print DateDiff("h", Now, dtPicker.Value)
-    'Debug.Print DateDiff("n", Now, dtPicker.Value)
-    'Debug.Print "seconds: " & seconds
     ' set timer interval
-    myTimer.Interval = Seconds * 1000
+    shutdownTimer.Interval = Seconds * 1000
     ToggleTimer
     minToTray
+End Sub
+
+Private Sub stopButton_Click()
+    ToggleTimer
+    CloseTray
+    If Not cf Is Nothing Then
+        Unload cf
+        Set cf = Nothing
+    End If
 End Sub
 
 Sub minToTray()
@@ -323,7 +340,9 @@ Sub minToTray()
             .IconHandle = Me.Icon.Handle
         End With
     End If
-    UpdateNotIconTip
+    If cf Is Nothing Then
+        UpdateNotIconTip
+    End If
 End Sub
 
 Sub UpdateNotIconTip(Optional showBalloon As Boolean = True)
@@ -334,13 +353,13 @@ Sub UpdateNotIconTip(Optional showBalloon As Boolean = True)
     End If
     
     Dim Seconds As Long
-    Seconds = DateDiff("s", TimeValue(Now), TimeValue(DTPicker.Value))
+    Seconds = DateDiff("s", TimeValue(Now), TimeValue(dtPicker.Value))
     If Seconds <= 0 Then
         Seconds = Seconds + 24! * 3600!
     End If
     
     Dim tip As String
-    tip = "Shutdown at " & Format(DTPicker.Value, "h:nn AM/PM")
+    tip = "Shutdown at " & Format(dtPicker.Value, "h:nn AM/PM")
     'tray.ToolTip = tip
     
     Dim hr, min, sec As Integer
@@ -385,12 +404,6 @@ Sub UpdateNotIconTip(Optional showBalloon As Boolean = True)
         tray.ShowBalloonTip bTip, Me.Caption, NIIF_INFO
     End If
     lastCall = GetTickCount
-End Sub
-
-Private Sub stopButton_Click()
-    fired = False
-    ToggleTimer
-    CloseTray
 End Sub
 
 Private Sub CloseTray()
@@ -453,8 +466,8 @@ Private Sub Form_KeyDown(KeyCode As Integer, Shift As Integer)
             End If
         
         Case vbKey1
-            If Shift = vbCtrlMask And Not myTimer.Enabled Then
-                DTPicker.Value = TimeValue(CStr(TimeSerial(Hour(Now), Minute(Now) + 1, 0)))
+            If Shift = vbCtrlMask And Not shutdownTimer.Enabled Then
+                dtPicker.Value = TimeValue(CStr(TimeSerial(Hour(Now), Minute(Now) + 1, 0)))
             End If
     End Select
 End Sub
@@ -469,18 +482,19 @@ Private Sub EasterEgg()
 End Sub
 
 Private Sub ToggleTestMode()
-    If Not testMode Then
-            'MsgBox "Test mode: On"
-            Me.Caption = "AutoShutdown [Test Mode]"
-        Else
-            'MsgBox "Test mode: Off"
-            Me.Caption = "AutoShutdown"
-        End If
+    If testMode Then
+        'MsgBox "Test mode: Off"
+        Me.Caption = "AutoShutdown"
+    Else
+        
+        'MsgBox "Test mode: On"
+        Me.Caption = "AutoShutdown [Test Mode]"
+    End If
     testMode = Not testMode
 End Sub
 
 Private Sub Form_QueryUnload(Cancel As Integer, UnloadMode As Integer)
-    If Me.Visible And myTimer.Enabled Then
+    If Me.Visible And shutdownTimer.Enabled Then
         Cancel = 1
         minToTray
         Exit Sub
@@ -493,6 +507,10 @@ Private Sub Form_QueryUnload(Cancel As Integer, UnloadMode As Integer)
         Unload easter
         Set easter = Nothing
     End If
+    If Not cf Is Nothing Then
+        Unload cf
+        Set cf = Nothing
+    End If
 End Sub
 
 Private Sub Form_Unload(Cancel As Integer)
@@ -500,12 +518,7 @@ Private Sub Form_Unload(Cancel As Integer)
 End Sub
 
 Private Sub SaveSettings()
-    If autoStartCB.Value Then
-        CreateShortcut
-    Else
-        DeleteShortcut
-    End If
-    WriteIni cfgFile, "Main", "alarmTime", Format(DTPicker.Value, "h:nn AM/PM")
+    WriteIni cfgFile, "Main", "alarmTime", Format(dtPicker.Value, "h:nn AM/PM")
     WriteIni cfgFile, "Main", "autoStart", autoStartCB.Value
     WriteIni cfgFile, "Main", "silentStart", silentStartCB.Value
     WriteIni cfgFile, "Main", "warn", warnCB.Value
@@ -516,3 +529,12 @@ Private Sub warnCB_Click()
     warnIntervalTB.Enabled = warnCB.Value
     UpDown1.Enabled = warnCB.Value
 End Sub
+
+Private Sub autoStartCB_Click()
+    If autoStartCB.Value Then
+        CreateShortcut
+    Else
+        DeleteShortcut
+    End If
+End Sub
+
