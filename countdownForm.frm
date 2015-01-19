@@ -17,7 +17,7 @@ Begin VB.Form countdownForm
    Begin VB.CommandButton cancelButton 
       Caption         =   "&Cancel"
       Height          =   375
-      Left            =   840
+      Left            =   788
       TabIndex        =   1
       Top             =   960
       Width           =   1095

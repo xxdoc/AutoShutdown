@@ -16,6 +16,14 @@ Begin VB.Form Form1
    ScaleWidth      =   4395
    ShowInTaskbar   =   0   'False
    StartUpPosition =   2  'CenterScreen
+   Begin VB.CommandButton aboutBtn 
+      Caption         =   "&About"
+      Height          =   255
+      Left            =   3580
+      TabIndex        =   9
+      Top             =   840
+      Width           =   615
+   End
    Begin VB.TextBox warnIntervalTB 
       Height          =   405
       Left            =   2280
@@ -98,7 +106,7 @@ Begin VB.Form Form1
          Strikethrough   =   0   'False
       EndProperty
       CustomFormat    =   "h:mm tt"
-      Format          =   40828931
+      Format          =   30146563
       UpDown          =   -1  'True
       CurrentDate     =   0.628472222222222
    End
@@ -453,13 +461,6 @@ Private Sub Form_KeyDown(KeyCode As Integer, Shift As Integer)
                 MakeTopMost Me.hWnd
             End If
         
-        Case vbKeyA
-            If Shift = vbCtrlMask Then
-                MakeNormal Me.hWnd
-                MsgBox "Author: El-Tabei M. El-Tabei"
-                MakeTopMost Me.hWnd
-            End If
-        
         Case vbKeyH
             If Shift = (vbCtrlMask Or vbShiftMask Or vbAltMask) Then
                 EasterEgg
@@ -536,5 +537,11 @@ Private Sub autoStartCB_Click()
     Else
         DeleteShortcut
     End If
+End Sub
+
+Private Sub aboutBtn_Click()
+    MakeNormal Me.hWnd
+    MsgBox "Author: El-Tabei M. El-Tabei"
+    MakeTopMost Me.hWnd
 End Sub
 
