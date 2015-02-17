@@ -541,7 +541,7 @@ End Sub
 
 Private Sub aboutBtn_Click()
     MakeNormal Me.hWnd
-    MsgBox "Author: El-Tabei M. El-Tabei" & vbNewLine & "eltabei.m@gmail.com", Title:="About AutoShutdown"
+    MsgBox "Author: El-Tabei M. El-Tabei", Title:="About AutoShutdown"
     MakeTopMost Me.hWnd
 End Sub
 
