@@ -106,7 +106,7 @@ Begin VB.Form Form1
          Strikethrough   =   0   'False
       EndProperty
       CustomFormat    =   "h:mm tt"
-      Format          =   30146563
+      Format          =   3997699
       UpDown          =   -1  'True
       CurrentDate     =   0.628472222222222
    End
@@ -541,7 +541,7 @@ End Sub
 
 Private Sub aboutBtn_Click()
     MakeNormal Me.hWnd
-    MsgBox "Author: El-Tabei M. El-Tabei"
+    MsgBox "Author: El-Tabei M. El-Tabei" & vbNewLine & "eltabei.m@gmail.com", Title:="About AutoShutdown"
     MakeTopMost Me.hWnd
 End Sub
 
