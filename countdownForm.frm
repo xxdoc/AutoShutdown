@@ -77,10 +77,8 @@ Private Sub timer_Timer(ByVal Seconds As Currency)
 End Sub
 
 Private Sub UpdateLabel()
-    Dim s As Long
-    Dim m As Long
-    m = Interval \ 60
-    s = Interval Mod 60
+    Dim s As Long: s = Interval Mod 60
+    Dim m As Long: m = Interval \ 60
     cdLabel.Caption = "Shutdown in " & Format(m, "00") & ":" & Format(s, "00")
 End Sub
 
