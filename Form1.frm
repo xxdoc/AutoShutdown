@@ -43,7 +43,7 @@ Begin VB.Form Form1
       _Version        =   393216
       Value           =   1
       BuddyControl    =   "warnIntervalTB"
-      BuddyDispid     =   196609
+      BuddyDispid     =   196610
       OrigLeft        =   3240
       OrigTop         =   1560
       OrigRight       =   3495
@@ -106,7 +106,7 @@ Begin VB.Form Form1
          Strikethrough   =   0   'False
       EndProperty
       CustomFormat    =   "h:mm tt"
-      Format          =   3997699
+      Format          =   80019459
       UpDown          =   -1  'True
       CurrentDate     =   0.628472222222222
    End
@@ -304,6 +304,7 @@ Private Sub shutdown()
 End Sub
 
 Private Sub startButton_Click()
+    SaveSettings
     ' if time has passed, fire tomorrow!
     Dim Seconds As Long
     ' won't use TimeValue() so that the subtraction takes into account if the
@@ -541,7 +542,7 @@ End Sub
 
 Private Sub aboutBtn_Click()
     MakeNormal Me.hWnd
-    MsgBox "Author: El-Tabei Mohamed", Title:="About AutoShutdown"
+    MsgBox "Author: El-Tabei Mohamed" & vbNewLine & "<eltabei.m@gmail.com>", Title:="About AutoShutdown"
     MakeTopMost Me.hWnd
 End Sub
 
